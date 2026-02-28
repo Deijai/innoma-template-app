@@ -1,103 +1,102 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 
 import { useFarmFiltersStore } from '../../../stores/useFarmFiltersStore';
-import type { Farm, FarmStatus, FarmType } from '../types';
+import { listFarmsPage } from '../data/farmsRepository';
+import type { Farm, FarmStatus, FarmProductionType } from '../types';
 
 const PAGE_SIZE = 12;
+
+type Cursor = QueryDocumentSnapshot<DocumentData> | null;
 
 const statusLabel: Record<FarmStatus, string> = {
   active: 'Ativa',
   inactive: 'Inativa',
-  maintenance: 'Manutenção',
 };
 
-const typeLabel: Record<FarmType, string> = {
-  agricultura: 'Agricultura',
-  pecuaria: 'Pecuária',
-  piscicultura: 'Piscicultura',
+const typeLabel: Record<FarmProductionType, string> = {
+  alevinagem: 'Alevinagem',
+  engorda: 'Engorda',
+  outro: 'Outro',
+  pesquePague: 'Pesque-pague',
+  policultivo: 'Policultivo',
+  reproducao: 'Reprodução',
 };
-
-const farmsMock: Farm[] = Array.from({ length: 45 }).map((_, index) => {
-  const tipos: FarmType[] = ['agricultura', 'pecuaria', 'piscicultura'];
-  const statuses: FarmStatus[] = ['active', 'inactive', 'maintenance'];
-  const cidades = ['Cuiabá', 'Sinop', 'Sorriso', 'Rondonópolis', 'Primavera do Leste'];
-  const estado = 'MT';
-  const tipo = tipos[index % tipos.length];
-  const status = statuses[index % statuses.length];
-
-  return {
-    id: `farm-${index + 1}`,
-    nome: `Fazenda ${index + 1}`,
-    cidade: cidades[index % cidades.length],
-    estado,
-    tipo,
-    status,
-    hectares: 120 + index * 7,
-  };
-});
 
 export function useFarmsListVM() {
   const filters = useFarmFiltersStore((state) => state.filters);
   const [search, setSearch] = useState('');
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-  const [refreshing, setRefreshing] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
+  const [farms, setFarms] = useState<Farm[]>([]);
+  const [cursor, setCursor] = useState<Cursor>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const filtered = useMemo(() => {
-    const normalizedSearch = search.trim().toLowerCase();
-    const cityQuery = filters.cidade.trim().toLowerCase();
+  const loadPage = useCallback(
+    async (mode: 'initial' | 'refresh' | 'more') => {
+      if (mode === 'more' && (!hasMore || isFetchingMore)) return;
 
-    return farmsMock.filter((farm) => {
-      const matchSearch =
-        !normalizedSearch ||
-        farm.nome.toLowerCase().includes(normalizedSearch) ||
-        farm.cidade.toLowerCase().includes(normalizedSearch);
+      if (mode === 'initial') setIsLoading(true);
+      if (mode === 'refresh') setIsRefreshing(true);
+      if (mode === 'more') setIsFetchingMore(true);
 
-      const matchStatus = filters.status === 'all' || farm.status === filters.status;
-      const matchType = filters.tipo === 'all' || farm.tipo === filters.tipo;
-      const matchCity = !cityQuery || farm.cidade.toLowerCase().includes(cityQuery);
+      try {
+        const page = await listFarmsPage({
+          pageSize: PAGE_SIZE,
+          cursor: mode === 'more' ? cursor : null,
+          search,
+          filters,
+        });
 
-      return matchSearch && matchStatus && matchType && matchCity;
-    });
-  }, [filters.cidade, filters.status, filters.tipo, search]);
+        setError(null);
+        setHasMore(page.hasMore);
+        setCursor(page.cursor);
+        setFarms((prev) => (mode === 'more' ? [...prev, ...page.items] : page.items));
+      } catch {
+        setError('Não foi possível carregar as fazendas.');
+      } finally {
+        setIsLoading(false);
+        setIsRefreshing(false);
+        setIsFetchingMore(false);
+      }
+    },
+    [cursor, filters, hasMore, isFetchingMore, search]
+  );
 
-  const farms = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
-  const hasMore = farms.length < filtered.length;
+  useEffect(() => {
+    void loadPage('initial');
+  }, [loadPage]);
 
   const onRefresh = useCallback(() => {
-    setRefreshing(true);
-
-    setTimeout(() => {
-      setVisibleCount(PAGE_SIZE);
-      setRefreshing(false);
-    }, 700);
-  }, []);
+    setCursor(null);
+    setHasMore(true);
+    void loadPage('refresh');
+  }, [loadPage]);
 
   const onEndReached = useCallback(() => {
-    if (!hasMore || loadingMore) {
-      return;
-    }
+    void loadPage('more');
+  }, [loadPage]);
 
-    setLoadingMore(true);
-
-    setTimeout(() => {
-      setVisibleCount((prev) => Math.min(prev + PAGE_SIZE, filtered.length));
-      setLoadingMore(false);
-    }, 500);
-  }, [filtered.length, hasMore, loadingMore]);
-
-  const activeFiltersCount = Number(filters.status !== 'all') + Number(filters.tipo !== 'all') + Number(!!filters.cidade.trim());
+  const activeFiltersCount = useMemo(
+    () => Number(filters.status !== 'all') + Number(filters.tipo !== 'all') + Number(!!filters.cidade.trim()),
+    [filters.cidade, filters.status, filters.tipo]
+  );
 
   return {
     search,
     setSearch,
     farms,
     hasMore,
-    refreshing,
-    loadingMore,
+    error,
+    isLoading,
+    isRefreshing,
+    isFetchingMore,
     onRefresh,
     onEndReached,
-    totalFiltered: filtered.length,
+    retry: () => loadPage('initial'),
+    totalFiltered: farms.length,
     activeFiltersCount,
     statusLabel,
     typeLabel,
