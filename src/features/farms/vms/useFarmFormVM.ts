@@ -1,8 +1,9 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Alert } from 'react-native';
 import { useEffect, useMemo, useState } from 'react';
 
 import { useAuthStore } from '../../../stores/useAuthStore';
-import { createFarm, getFarmById, updateFarm } from '../data/farmsRepository';
+import { createFarm, deleteFarm, getFarmById, updateFarm } from '../data/farmsRepository';
 import type { FarmInput } from '../types';
 
 const initialForm: FarmInput = {
@@ -31,6 +32,7 @@ export function useFarmFormVM() {
   const [errors, setErrors] = useState<Partial<Record<keyof FarmInput, string>>>({});
   const [isLoading, setIsLoading] = useState(isEdit);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -144,6 +146,30 @@ export function useFarmFormVM() {
     }
   };
 
+  const remove = () => {
+    if (!id) return;
+
+    Alert.alert('Excluir fazenda', 'Tem certeza que deseja excluir esta fazenda? Esta ação não pode ser desfeita.', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Excluir',
+        style: 'destructive',
+        onPress: async () => {
+          setIsDeleting(true);
+          setError(null);
+          try {
+            await deleteFarm(id);
+            router.back();
+          } catch {
+            setError('Não foi possível excluir a fazenda.');
+          } finally {
+            setIsDeleting(false);
+          }
+        },
+      },
+    ]);
+  };
+
   return {
     id,
     isEdit,
@@ -153,8 +179,10 @@ export function useFarmFormVM() {
     setField,
     isLoading,
     isSaving,
+    isDeleting,
     error,
     submit,
+    remove,
     goBack: () => router.back(),
     latitudeLabel: useMemo(() => String(form.latitude ?? ''), [form.latitude]),
     longitudeLabel: useMemo(() => String(form.longitude ?? ''), [form.longitude]),
