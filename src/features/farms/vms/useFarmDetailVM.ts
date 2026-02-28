@@ -10,6 +10,7 @@ export function useFarmDetailVM() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const user = useAuthStore((s) => s.user);
+  const isAdmin = useAuthStore((s) => s.isAdmin);
 
   const [farm, setFarm] = useState<Farm | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -37,9 +38,8 @@ export function useFarmDetailVM() {
 
   const canManage = useMemo(() => {
     if (!farm || !user?.uid) return false;
-    const isAdmin = user.email?.includes('admin') ?? false;
     return isAdmin || farm.createdByUserId === user.uid;
-  }, [farm, user?.email, user?.uid]);
+  }, [farm, isAdmin, user?.uid]);
 
   const remove = () => {
     if (!id || !canManage) return;
