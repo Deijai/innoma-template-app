@@ -3,11 +3,15 @@ import { useToastStore } from "@/src/stores/useToastStore";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 
+const ROLE_OPTIONS = ["produtor", "admin"] as const;
+type UserRole = (typeof ROLE_OPTIONS)[number];
+
 type Errors = {
   name?: string;
   email?: string;
   password?: string;
   confirm?: string;
+  role?: string;
 };
 
 function friendlyAuthError(code?: string) {
@@ -31,6 +35,7 @@ export function useSignUpVM() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [role, setRole] = useState<UserRole>("produtor");
 
   const [errors, setErrors] = useState<Errors>({});
   const [loading, setLoading] = useState(false);
@@ -49,6 +54,8 @@ export function useSignUpVM() {
     if (!confirmPassword) e.confirm = "Confirme sua senha";
     else if (confirmPassword !== password) e.confirm = "Senhas não conferem";
 
+    if (!ROLE_OPTIONS.includes(role)) e.role = "Selecione um perfil";
+
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -59,7 +66,7 @@ export function useSignUpVM() {
 
     try {
       setLoading(true);
-      await signUp(email, password);
+      await signUp(email, password, role, name.trim());
 
       useToastStore.getState().show("Conta criada! Bem-vindo 👋", "success");
       router.replace("/(auth)/sign-in");
@@ -87,5 +94,8 @@ export function useSignUpVM() {
     goToLogin,
     name,
     setName,
+    role,
+    setRole,
+    roleOptions: ROLE_OPTIONS,
   };
 }
