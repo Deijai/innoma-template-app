@@ -67,7 +67,7 @@ export default function FarmsIndex() {
           onEndReachedThreshold={0.35}
           onEndReached={vm.onEndReached}
           renderItem={({ item }) => (
-            <Card padding={12}>
+            <Card padding={12} style={{ gap: 10 }}>
               <ListItem
                 onPress={() => router.push({ pathname: '/(farms)/[id]', params: { id: item.id } })}
                 titulo={item.nome}
@@ -88,6 +88,27 @@ export default function FarmsIndex() {
                   </View>
                 }
               />
+
+              {vm.canManage(item) ? (
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                  <Button
+                    title="Editar"
+                    onPress={() => router.push({ pathname: '/(farms)/form', params: { id: item.id } })}
+                    style={{ flex: 1, justifyContent: 'center' }}
+                  />
+                  <Button
+                    title="Excluir"
+                    onPress={() => vm.remove(item)}
+                    variant="ghost"
+                    style={{
+                      flex: 1,
+                      justifyContent: 'center',
+                      borderColor: '#EF4444',
+                      backgroundColor: '#FFF1F2',
+                    }}
+                  />
+                </View>
+              ) : null}
             </Card>
           )}
           ListEmptyComponent={
