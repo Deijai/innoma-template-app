@@ -5,15 +5,10 @@ import {
   doc,
   getDoc,
   getDocs,
-  limit,
-  orderBy,
-  query,
   serverTimestamp,
-  startAfter,
   updateDoc,
+  query,
   where,
-  type QueryDocumentSnapshot,
-  type DocumentData,
 } from 'firebase/firestore';
 
 import { db } from '../../../shared/firestore/firestore';
@@ -22,7 +17,7 @@ import type { Farm, FarmFilters, FarmInput, FarmsPage } from '../types';
 const FARMS_COLLECTION = 'farms';
 const farmsRef = collection(db, FARMS_COLLECTION);
 
-type FarmsCursor = QueryDocumentSnapshot<DocumentData>;
+type FarmsCursor = number;
 
 type FirestoreFarm = {
   nome: string;
@@ -72,33 +67,33 @@ export async function listFarmsPage(params: {
   filters: FarmFilters;
   userId: string;
 }): Promise<FarmsPage<FarmsCursor>> {
-  const constraints: any[] = [where('createdByUserId', '==', params.userId), orderBy('createdAt', 'desc'), limit(params.pageSize)];
-
-  if (params.filters.status !== 'all') constraints.push(where('status', '==', params.filters.status));
-  if (params.filters.tipo !== 'all') constraints.push(where('tipoProducao', '==', params.filters.tipo));
-  if (params.cursor) constraints.push(startAfter(params.cursor));
-
-  const snap = await getDocs(query(farmsRef, ...constraints));
+  const snap = await getDocs(query(farmsRef, where('createdByUserId', '==', params.userId)));
   let items = snap.docs.map((farm) => mapFarm(farm.id, farm.data() as FirestoreFarm));
 
   const normalizedSearch = params.search.trim().toLowerCase();
   const normalizedCity = params.filters.cidade.trim().toLowerCase();
 
-  if (normalizedSearch || normalizedCity) {
-    items = items.filter((farm) => {
+  items = items
+    .filter((farm) => {
+      const matchStatus = params.filters.status === 'all' || farm.status === params.filters.status;
+      const matchType = params.filters.tipo === 'all' || farm.tipoProducao === params.filters.tipo;
       const matchSearch =
-        !normalizedSearch ||
-        farm.nome.toLowerCase().includes(normalizedSearch) ||
-        farm.cidade.toLowerCase().includes(normalizedSearch);
+        !normalizedSearch || farm.nome.toLowerCase().includes(normalizedSearch) || farm.cidade.toLowerCase().includes(normalizedSearch);
       const matchCity = !normalizedCity || farm.cidade.toLowerCase().includes(normalizedCity);
-      return matchSearch && matchCity;
-    });
-  }
+
+      return matchStatus && matchType && matchSearch && matchCity;
+    })
+    .sort((a, b) => b.createdAt - a.createdAt);
+
+  const start = params.cursor ?? 0;
+  const pageItems = items.slice(start, start + params.pageSize);
+  const nextCursor = start + pageItems.length;
+  const hasMore = nextCursor < items.length;
 
   return {
-    items,
-    hasMore: snap.docs.length === params.pageSize,
-    cursor: snap.docs[snap.docs.length - 1] ?? null,
+    items: pageItems,
+    hasMore,
+    cursor: hasMore ? nextCursor : null,
   };
 }
 

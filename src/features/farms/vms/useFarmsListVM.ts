@@ -1,4 +1,3 @@
-import type { DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 import { Alert } from 'react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -9,7 +8,7 @@ import type { Farm, FarmProductionType, FarmStatus } from '../types';
 
 const PAGE_SIZE = 12;
 
-type Cursor = QueryDocumentSnapshot<DocumentData> | null;
+type Cursor = number | null;
 
 const statusLabel: Record<FarmStatus, string> = {
   active: 'Ativa',
