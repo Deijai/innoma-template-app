@@ -22,7 +22,13 @@ export function useFarmDetailVM() {
 
     setIsLoading(true);
     try {
-      const item = await getFarmById(id);
+      if (!user?.uid) {
+        setError('Usuário não autenticado.');
+        setIsLoading(false);
+        return;
+      }
+
+      const item = await getFarmById(id, user.uid);
       setFarm(item);
       setError(item ? null : 'Fazenda não encontrada.');
     } catch {
@@ -30,7 +36,7 @@ export function useFarmDetailVM() {
     } finally {
       setIsLoading(false);
     }
-  }, [id]);
+  }, [id, user?.uid]);
 
   useEffect(() => {
     void load();
@@ -40,7 +46,6 @@ export function useFarmDetailVM() {
     if (!farm || !user?.uid) return false;
     return isAdmin || farm.createdByUserId === user.uid;
   }, [farm, isAdmin, user?.uid]);
-
   const remove = () => {
     if (!id || !canManage) return;
 
@@ -53,7 +58,8 @@ export function useFarmDetailVM() {
           setIsDeleting(true);
           setError(null);
           try {
-            await deleteFarm(id);
+            if (!user?.uid) return;
+            await deleteFarm(id, user.uid);
             router.back();
           } catch {
             setError('Não foi possível excluir a fazenda.');
