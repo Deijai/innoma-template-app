@@ -1,4 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Alert } from 'react-native';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useAuthStore } from '../../../stores/useAuthStore';
@@ -40,17 +41,28 @@ export function useFarmDetailVM() {
     return isAdmin || farm.createdByUserId === user.uid;
   }, [farm, user?.email, user?.uid]);
 
-  const remove = async () => {
+  const remove = () => {
     if (!id || !canManage) return;
-    setIsDeleting(true);
-    try {
-      await deleteFarm(id);
-      router.back();
-    } catch {
-      setError('Não foi possível excluir a fazenda.');
-    } finally {
-      setIsDeleting(false);
-    }
+
+    Alert.alert('Excluir fazenda', 'Tem certeza que deseja excluir esta fazenda? Esta ação não pode ser desfeita.', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Excluir',
+        style: 'destructive',
+        onPress: async () => {
+          setIsDeleting(true);
+          setError(null);
+          try {
+            await deleteFarm(id);
+            router.back();
+          } catch {
+            setError('Não foi possível excluir a fazenda.');
+          } finally {
+            setIsDeleting(false);
+          }
+        },
+      },
+    ]);
   };
 
   return {
