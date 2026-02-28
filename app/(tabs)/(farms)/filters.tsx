@@ -8,6 +8,7 @@ import { Card } from '../../../src/components/ui/Card';
 import { IconButton } from '../../../src/components/ui/IconButton';
 import { SelectField } from '../../../src/components/ui/SelectField';
 import { TextField } from '../../../src/components/ui/TextField';
+import { farmStatusOptions, farmTypeOptions } from '../../../src/features/farms/farmOptions';
 import { useFarmFiltersVM } from '../../../src/features/farms/vms/useFarmFiltersVM';
 
 export default function FarmFiltersScreen() {
@@ -29,24 +30,14 @@ export default function FarmFiltersScreen() {
           label="Status"
           valor={vm.draft.status}
           onChange={(value) => vm.update('status', value)}
-          opcoes={[
-            { label: 'Todos', value: 'all' },
-            { label: 'Ativa', value: 'active' },
-            { label: 'Inativa', value: 'inactive' },
-            { label: 'Em manutenção', value: 'maintenance' },
-          ]}
+          opcoes={[{ label: 'Todos', value: 'all' }, ...farmStatusOptions]}
         />
 
         <SelectField
-          label="Tipo de operação"
+          label="Tipo de produção"
           valor={vm.draft.tipo}
           onChange={(value) => vm.update('tipo', value)}
-          opcoes={[
-            { label: 'Todos', value: 'all' },
-            { label: 'Agricultura', value: 'agricultura' },
-            { label: 'Pecuária', value: 'pecuaria' },
-            { label: 'Piscicultura', value: 'piscicultura' },
-          ]}
+          opcoes={[{ label: 'Todos', value: 'all' }, ...farmTypeOptions]}
         />
 
         <TextField

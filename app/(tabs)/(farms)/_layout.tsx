@@ -6,6 +6,8 @@ export default function FarmsLayout() {
     <Stack>
       <Stack.Screen name="index" options={{ headerShown: false, presentation: 'modal' }} />
       <Stack.Screen name="filters" options={{ headerShown: false, presentation: 'modal' }} />
+      <Stack.Screen name="form" options={{ headerShown: false, presentation: 'modal' }} />
+      <Stack.Screen name="[id]" options={{ headerShown: false, presentation: 'modal' }} />
     </Stack>
   );
 }

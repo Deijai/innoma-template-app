@@ -5,6 +5,7 @@ import { ActivityIndicator, FlatList, RefreshControl, View } from 'react-native'
 
 import { Screen } from '../../../src/components/layout/Screen';
 import { AppText } from '../../../src/components/ui/AppText';
+import { Button } from '../../../src/components/ui/Button';
 import { Card } from '../../../src/components/ui/Card';
 import { IconButton } from '../../../src/components/ui/IconButton';
 import { ListItem } from '../../../src/components/ui/ListItem';
@@ -25,7 +26,10 @@ export default function FarmsIndex() {
           <AppText variant="title">Fazendas</AppText>
         </View>
 
-        <IconButton icon="options-outline" onPress={() => router.push('/(farms)/filters')} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <IconButton icon="add" onPress={() => router.push('/(farms)/form')} />
+          <IconButton icon="options-outline" onPress={() => router.push('/(farms)/filters')} />
+        </View>
       </View>
 
       <TextField
@@ -40,60 +44,75 @@ export default function FarmsIndex() {
         }
       />
 
-      <FlatList
-        data={vm.farms}
-        keyExtractor={(item) => item.id}
-        style={{ marginTop: 12 }}
-        contentContainerStyle={{ paddingBottom: 32, gap: 8 }}
-        showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={vm.refreshing} onRefresh={vm.onRefresh} tintColor={t.colors.accent} />}
-        onEndReachedThreshold={0.35}
-        onEndReached={vm.onEndReached}
-        renderItem={({ item }) => (
-          <Card padding={12}>
-            <ListItem
-              titulo={item.nome}
-              descricao={`${item.cidade}/${item.estado} • ${vm.typeLabel[item.tipo]} • ${item.hectares} ha`}
-              icone="leaf-outline"
-              direita={
-                <View
-                  style={{
-                    paddingHorizontal: 10,
-                    paddingVertical: 6,
-                    borderRadius: t.radii.pill,
-                    backgroundColor: t.colors.accentSoft,
-                  }}
-                >
-                  <AppText variant="caption" style={{ color: t.colors.accent }}>
-                    {vm.statusLabel[item.status]}
-                  </AppText>
-                </View>
-              }
-            />
-          </Card>
-        )}
-        ListEmptyComponent={
-          <Card>
-            <View style={{ alignItems: 'center', gap: 8 }}>
-              <Ionicons name="search-outline" size={20} color={t.colors.textMuted} />
-              <AppText variant="subtitle">Nenhuma fazenda encontrada</AppText>
-              <AppText variant="caption" color="muted">
-                Tente ajustar a busca ou alterar os filtros.
-              </AppText>
-            </View>
-          </Card>
-        }
-        ListFooterComponent={
-          vm.loadingMore ? (
-            <View style={{ paddingVertical: 16, alignItems: 'center', gap: 8 }}>
-              <ActivityIndicator size="small" color={t.colors.accent} />
-              <AppText variant="caption" color="muted">
-                Carregando mais fazendas...
-              </AppText>
-            </View>
-          ) : null
-        }
-      />
+      {vm.isLoading ? (
+        <View style={{ marginTop: 22, alignItems: 'center', gap: 8 }}>
+          <ActivityIndicator size="small" color={t.colors.accent} />
+          <AppText variant="caption" color="muted">
+            Carregando fazendas...
+          </AppText>
+        </View>
+      ) : vm.error ? (
+        <Card style={{ marginTop: 16, gap: 10 }}>
+          <AppText variant="subtitle">{vm.error}</AppText>
+          <Button title="Tentar novamente" onPress={vm.retry} />
+        </Card>
+      ) : (
+        <FlatList
+          data={vm.farms}
+          keyExtractor={(item) => item.id}
+          style={{ marginTop: 12 }}
+          contentContainerStyle={{ paddingBottom: 32, gap: 8 }}
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={vm.isRefreshing} onRefresh={vm.onRefresh} tintColor={t.colors.accent} />}
+          onEndReachedThreshold={0.35}
+          onEndReached={vm.onEndReached}
+          renderItem={({ item }) => (
+            <Card padding={12}>
+              <ListItem
+                onPress={() => router.push({ pathname: '/(farms)/[id]', params: { id: item.id } })}
+                titulo={item.nome}
+                descricao={`${item.cidade}/${item.estado} • ${vm.typeLabel[item.tipoProducao]} • ${item.areaTotalHa} ha`}
+                icone="leaf-outline"
+                direita={
+                  <View
+                    style={{
+                      paddingHorizontal: 10,
+                      paddingVertical: 6,
+                      borderRadius: t.radii.pill,
+                      backgroundColor: t.colors.accentSoft,
+                    }}
+                  >
+                    <AppText variant="caption" style={{ color: t.colors.accent }}>
+                      {vm.statusLabel[item.status]}
+                    </AppText>
+                  </View>
+                }
+              />
+            </Card>
+          )}
+          ListEmptyComponent={
+            <Card>
+              <View style={{ alignItems: 'center', gap: 8 }}>
+                <Ionicons name="search-outline" size={20} color={t.colors.textMuted} />
+                <AppText variant="subtitle">Nenhuma fazenda encontrada</AppText>
+                <AppText variant="caption" color="muted">
+                  Tente ajustar a busca ou alterar os filtros.
+                </AppText>
+              </View>
+            </Card>
+          }
+          ListFooterComponent={
+            vm.isFetchingMore ? (
+              <View style={{ paddingVertical: 16, alignItems: 'center', gap: 8 }}>
+                <ActivityIndicator size="small" color={t.colors.accent} />
+                <AppText variant="caption" color="muted">
+                  Carregando mais fazendas...
+                </AppText>
+              </View>
+            ) : null
+          }
+        />
+      )}
     </Screen>
   );
 }
