@@ -1,8 +1,10 @@
 import type { DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
+import { Alert } from 'react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { useAuthStore } from '../../../stores/useAuthStore';
 import { useFarmFiltersStore } from '../../../stores/useFarmFiltersStore';
-import { listFarmsPage } from '../data/farmsRepository';
+import { deleteFarm, listFarmsPage } from '../data/farmsRepository';
 import type { Farm, FarmProductionType, FarmStatus } from '../types';
 
 const PAGE_SIZE = 12;
@@ -24,6 +26,8 @@ const typeLabel: Record<FarmProductionType, string> = {
 };
 
 export function useFarmsListVM() {
+  const user = useAuthStore((state) => state.user);
+  const isAdmin = useAuthStore((state) => state.isAdmin);
   const filters = useFarmFiltersStore((state) => state.filters);
   const [search, setSearch] = useState('');
   const [farms, setFarms] = useState<Farm[]>([]);
@@ -89,6 +93,37 @@ export function useFarmsListVM() {
     void loadPage('more');
   }, [loadPage]);
 
+  const canManage = useCallback(
+    (farm: Farm) => {
+      if (!user?.uid) return false;
+      return isAdmin || farm.createdByUserId === user.uid;
+    },
+    [isAdmin, user?.uid]
+  );
+
+  const remove = useCallback(
+    (farm: Farm) => {
+      Alert.alert('Excluir fazenda', `Deseja realmente excluir "${farm.nome}"?`, [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Excluir',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteFarm(farm.id);
+              cursorRef.current = null;
+              hasMoreRef.current = true;
+              void loadPage('initial');
+            } catch {
+              setError('Não foi possível excluir a fazenda.');
+            }
+          },
+        },
+      ]);
+    },
+    [loadPage]
+  );
+
   const activeFiltersCount = useMemo(
     () => Number(filters.status !== 'all') + Number(filters.tipo !== 'all') + Number(!!filters.cidade.trim()),
     [filters.cidade, filters.status, filters.tipo]
@@ -114,5 +149,7 @@ export function useFarmsListVM() {
     activeFiltersCount,
     statusLabel,
     typeLabel,
+    canManage,
+    remove,
   };
 }
