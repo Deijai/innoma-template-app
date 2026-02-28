@@ -27,7 +27,6 @@ const typeLabel: Record<FarmProductionType, string> = {
 
 export function useFarmsListVM() {
   const user = useAuthStore((state) => state.user);
-  const isAdmin = useAuthStore((state) => state.isAdmin);
   const filters = useFarmFiltersStore((state) => state.filters);
   const [search, setSearch] = useState('');
   const [farms, setFarms] = useState<Farm[]>([]);
@@ -53,11 +52,20 @@ export function useFarmsListVM() {
       }
 
       try {
+        if (!user?.uid) {
+          setFarms([]);
+          setHasMore(false);
+          hasMoreRef.current = false;
+          setError('Usuário não autenticado.');
+          return;
+        }
+
         const page = await listFarmsPage({
           pageSize: PAGE_SIZE,
           cursor: mode === 'more' ? cursorRef.current : null,
           search,
           filters,
+          userId: user.uid,
         });
 
         setError(null);
@@ -74,7 +82,7 @@ export function useFarmsListVM() {
         setIsFetchingMore(false);
       }
     },
-    [filters, search]
+    [filters, search, user?.uid]
   );
 
   useEffect(() => {
@@ -96,9 +104,9 @@ export function useFarmsListVM() {
   const canManage = useCallback(
     (farm: Farm) => {
       if (!user?.uid) return false;
-      return isAdmin || farm.createdByUserId === user.uid;
+      return farm.createdByUserId === user.uid;
     },
-    [isAdmin, user?.uid]
+    [user?.uid]
   );
 
   const remove = useCallback(
@@ -110,7 +118,8 @@ export function useFarmsListVM() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await deleteFarm(farm.id);
+              if (!user?.uid) return;
+              await deleteFarm(farm.id, user.uid);
               cursorRef.current = null;
               hasMoreRef.current = true;
               void loadPage('initial');
@@ -121,7 +130,7 @@ export function useFarmsListVM() {
         },
       ]);
     },
-    [loadPage]
+    [loadPage, user?.uid]
   );
 
   const activeFiltersCount = useMemo(

@@ -41,7 +41,12 @@ export function useFarmFormVM() {
     (async () => {
       setIsLoading(true);
       try {
-        const farm = await getFarmById(id);
+        if (!user?.uid) {
+          setError('Usuário não autenticado.');
+          return;
+        }
+
+        const farm = await getFarmById(id, user.uid);
         if (!farm) {
           setError('Fazenda não encontrada.');
           return;
@@ -68,7 +73,7 @@ export function useFarmFormVM() {
         setIsLoading(false);
       }
     })();
-  }, [id]);
+  }, [id, user?.uid]);
 
   const setField = <K extends keyof FarmInput>(field: K, value: FarmInput[K]) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -121,7 +126,7 @@ export function useFarmFormVM() {
           telefone: form.telefone.trim(),
           enderecoCompleto: form.enderecoCompleto.trim(),
           observacoes: form.observacoes.trim(),
-        });
+        }, user.uid);
       } else {
         await createFarm(
           {
@@ -158,7 +163,8 @@ export function useFarmFormVM() {
           setIsDeleting(true);
           setError(null);
           try {
-            await deleteFarm(id);
+            if (!user?.uid) return;
+            await deleteFarm(id, user.uid);
             router.back();
           } catch {
             setError('Não foi possível excluir a fazenda.');

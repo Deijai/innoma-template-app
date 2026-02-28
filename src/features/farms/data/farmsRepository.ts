@@ -70,8 +70,9 @@ export async function listFarmsPage(params: {
   cursor: FarmsCursor | null;
   search: string;
   filters: FarmFilters;
+  userId: string;
 }): Promise<FarmsPage<FarmsCursor>> {
-  const constraints: any[] = [orderBy('createdAt', 'desc'), limit(params.pageSize)];
+  const constraints: any[] = [where('createdByUserId', '==', params.userId), orderBy('createdAt', 'desc'), limit(params.pageSize)];
 
   if (params.filters.status !== 'all') constraints.push(where('status', '==', params.filters.status));
   if (params.filters.tipo !== 'all') constraints.push(where('tipoProducao', '==', params.filters.tipo));
@@ -110,19 +111,37 @@ export async function createFarm(data: FarmInput, createdByUserId: string) {
   });
 }
 
-export async function updateFarm(id: string, data: FarmInput) {
-  await updateDoc(doc(db, FARMS_COLLECTION, id), {
+export async function updateFarm(id: string, data: FarmInput, userId: string) {
+  const farmRef = doc(db, FARMS_COLLECTION, id);
+  const snapshot = await getDoc(farmRef);
+  if (!snapshot.exists()) throw new Error('Farm not found');
+
+  const farm = mapFarm(snapshot.id, snapshot.data() as FirestoreFarm);
+  if (farm.createdByUserId !== userId) throw new Error('Forbidden');
+
+  await updateDoc(farmRef, {
     ...data,
     updatedAt: serverTimestamp(),
   });
 }
 
-export async function deleteFarm(id: string) {
-  await deleteDoc(doc(db, FARMS_COLLECTION, id));
+export async function deleteFarm(id: string, userId: string) {
+  const farmRef = doc(db, FARMS_COLLECTION, id);
+  const snapshot = await getDoc(farmRef);
+  if (!snapshot.exists()) throw new Error('Farm not found');
+
+  const farm = mapFarm(snapshot.id, snapshot.data() as FirestoreFarm);
+  if (farm.createdByUserId !== userId) throw new Error('Forbidden');
+
+  await deleteDoc(farmRef);
 }
 
-export async function getFarmById(id: string) {
+export async function getFarmById(id: string, userId: string) {
   const snapshot = await getDoc(doc(db, FARMS_COLLECTION, id));
   if (!snapshot.exists()) return null;
-  return mapFarm(snapshot.id, snapshot.data() as FirestoreFarm);
+
+  const farm = mapFarm(snapshot.id, snapshot.data() as FirestoreFarm);
+  if (farm.createdByUserId !== userId) return null;
+
+  return farm;
 }
