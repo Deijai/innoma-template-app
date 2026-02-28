@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useFarmFiltersStore } from '../../../stores/useFarmFiltersStore';
 import { listFarmsPage } from '../data/farmsRepository';
-import type { Farm, FarmStatus, FarmProductionType } from '../types';
+import type { Farm, FarmProductionType, FarmStatus } from '../types';
 
 const PAGE_SIZE = 12;
 
@@ -27,51 +27,61 @@ export function useFarmsListVM() {
   const filters = useFarmFiltersStore((state) => state.filters);
   const [search, setSearch] = useState('');
   const [farms, setFarms] = useState<Farm[]>([]);
-  const [cursor, setCursor] = useState<Cursor>(null);
   const [hasMore, setHasMore] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const cursorRef = useRef<Cursor>(null);
+  const hasMoreRef = useRef(true);
+  const isFetchingMoreRef = useRef(false);
+
   const loadPage = useCallback(
     async (mode: 'initial' | 'refresh' | 'more') => {
-      if (mode === 'more' && (!hasMore || isFetchingMore)) return;
+      if (mode === 'more' && (!hasMoreRef.current || isFetchingMoreRef.current)) return;
 
       if (mode === 'initial') setIsLoading(true);
       if (mode === 'refresh') setIsRefreshing(true);
-      if (mode === 'more') setIsFetchingMore(true);
+      if (mode === 'more') {
+        isFetchingMoreRef.current = true;
+        setIsFetchingMore(true);
+      }
 
       try {
         const page = await listFarmsPage({
           pageSize: PAGE_SIZE,
-          cursor: mode === 'more' ? cursor : null,
+          cursor: mode === 'more' ? cursorRef.current : null,
           search,
           filters,
         });
 
         setError(null);
+        hasMoreRef.current = page.hasMore;
         setHasMore(page.hasMore);
-        setCursor(page.cursor);
+        cursorRef.current = page.cursor;
         setFarms((prev) => (mode === 'more' ? [...prev, ...page.items] : page.items));
       } catch {
         setError('Não foi possível carregar as fazendas.');
       } finally {
         setIsLoading(false);
         setIsRefreshing(false);
+        isFetchingMoreRef.current = false;
         setIsFetchingMore(false);
       }
     },
-    [cursor, filters, hasMore, isFetchingMore, search]
+    [filters, search]
   );
 
   useEffect(() => {
+    cursorRef.current = null;
+    hasMoreRef.current = true;
     void loadPage('initial');
   }, [loadPage]);
 
   const onRefresh = useCallback(() => {
-    setCursor(null);
-    setHasMore(true);
+    cursorRef.current = null;
+    hasMoreRef.current = true;
     void loadPage('refresh');
   }, [loadPage]);
 
@@ -95,7 +105,11 @@ export function useFarmsListVM() {
     isFetchingMore,
     onRefresh,
     onEndReached,
-    retry: () => loadPage('initial'),
+    retry: () => {
+      cursorRef.current = null;
+      hasMoreRef.current = true;
+      void loadPage('initial');
+    },
     totalFiltered: farms.length,
     activeFiltersCount,
     statusLabel,
