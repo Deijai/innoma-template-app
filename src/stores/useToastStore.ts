@@ -5,8 +5,9 @@ type ToastType = "success" | "error" | "info";
 type ToastState = {
   visible: boolean;
   message: string;
+  title?: string;
   type: ToastType;
-  show: (message: string, type?: ToastType) => void;
+  show: (params: { tipo: string; mensagem: string; titulo?: string }) => void;
   hide: () => void;
 };
 
@@ -15,6 +16,13 @@ export const useToastStore = create<ToastState>((set) => ({
   message: "",
   type: "info",
 
-  show: (message, type = "info") => set({ visible: true, message, type }),
+  show: ({ tipo, mensagem, titulo }) => {
+    const typeMap: Record<string, ToastType> = {
+      sucesso: 'success',
+      erro: 'error',
+      info: 'info'
+    };
+    set({ visible: true, message: mensagem, title: titulo, type: typeMap[tipo] || 'info' });
+  },
   hide: () => set({ visible: false }),
 }));

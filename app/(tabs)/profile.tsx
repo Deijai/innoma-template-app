@@ -56,7 +56,7 @@ export default function ProfileScreen() {
               variant="ghost"
               onPress={() => {
                 signOut();
-                toast.sucesso('Você saiu da sua conta.');
+                toast.sucesso('Desconectado com sucesso.');
                 router.replace('/(auth)/sign-in');
               }}
             />
